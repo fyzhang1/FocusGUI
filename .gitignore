@@ -1,0 +1,33 @@
+# OmniGUI data are distributed separately and must never be committed here.
+/data/
+
+# Generated evidence, checkpoints, predictions, and experiment logs.
+/logs/
+/outputs/
+/checkpoints/
+
+# Local model weights and caches.
+/models/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.npy
+
+# Local environment and tooling state.
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.DS_Store
+
+# Build artifacts.
+build/
+dist/
+*.egg-info/

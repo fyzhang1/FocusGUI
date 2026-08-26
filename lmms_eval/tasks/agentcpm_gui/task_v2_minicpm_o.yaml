@@ -1,0 +1,33 @@
+task: task_v2_minicpm_o
+dataset_path: json
+dataset_kwargs:
+  data_files: "data/merged_sorted.json"
+test_split: train
+output_type: generate_until
+doc_to_visual: !function utils.omni_doc_to_visual
+doc_to_text: ""
+doc_to_messages: !function utils.unified_v2_doc_to_messages
+doc_to_target: !function utils.omni_doc_to_target
+process_results: !function utils.omni_process_results
+generation_kwargs:
+  max_new_tokens: 4096
+  temperature: 0
+  do_sample: false
+metric_list:
+  - metric: type_match
+    aggregation: !function utils.agentcpm_aggregate_type_match
+    higher_is_better: true
+  - metric: exact_match
+    aggregation: !function utils.agentcpm_aggregate_exact_match
+    higher_is_better: true
+  - metric: success_rate
+    aggregation: !function utils.agentcpm_aggregate_success_rate
+    higher_is_better: true
+  - metric: goal_progress
+    aggregation: !function utils.agentcpm_aggregate_goal_progress
+    higher_is_better: true
+lmms_eval_specific_kwargs:
+  media_dir: "data/benchmark"
+  coordinate_type: "normalized"
+metadata:
+  version: 3
