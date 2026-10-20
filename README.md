@@ -1,7 +1,6 @@
 <div align="center">
 
-# FocusGUI
-### Focused Omni-Modal GUI Agents
+## Focused Omni-Modal GUI Agents
 
 **Fuyao Zhang · Wenwen He · Jiaming Zhang · Yurong Hao · Xuan Wang**<br>
 **Guowei Guan · Che Wang · Longtao Huang · Wei Yang Bryan Lim**
@@ -177,10 +176,3 @@ and third-party grounding baseline implementations are not bundled.
   url     = {https://arxiv.org/abs/2610.26203}
 }
 ```
-
-## Acknowledgment
-
-FocusGUI builds on OmniGUI and the [LMMS-Eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)
-evaluation infrastructure, alongside the four backbone projects. Their
-names and attribution are retained in the corresponding model and evaluator
-code. Please follow upstream data and model licenses and cite the relevant work.
