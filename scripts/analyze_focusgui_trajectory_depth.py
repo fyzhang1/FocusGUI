@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Analyze held-out FOG performance as interaction depth increases.
+"""Analyze held-out FocusGUI performance as interaction depth increases.
 
 This is a post-hoc test-set analysis. It pairs real raw Qwen generations with
-real FOG generations on the same episode-disjoint 508-step test split. No
+real FocusGUI generations on the same episode-disjoint 508-step test split. No
 prediction is synthesized or modified, and test labels are used only to score
 the already-generated actions.
 """
@@ -102,7 +102,7 @@ def mean_metric(records: Sequence[Dict], method: str, metric: str) -> float:
 
 
 def paired_gain(records: Sequence[Dict], metric: str) -> float:
-    return float(np.mean([float(row["fog"][metric]) - float(row["raw"][metric]) for row in records]))
+    return float(np.mean([float(row["focusgui"][metric]) - float(row["raw"][metric]) for row in records]))
 
 
 def cluster_bootstrap(
@@ -126,7 +126,7 @@ def cluster_bootstrap(
 def linear_gain_slope(records: Sequence[Dict], metric: str) -> float:
     x = np.asarray([row["step_index"] for row in records], dtype=np.float64)
     y = np.asarray(
-        [float(row["fog"][metric]) - float(row["raw"][metric]) for row in records],
+        [float(row["focusgui"][metric]) - float(row["raw"][metric]) for row in records],
         dtype=np.float64,
     )
     return float(np.polyfit(x, y, 1)[0])
@@ -158,15 +158,15 @@ def matched_depth_contrast(
     for row in records:
         grouped[row["episode_key"]][row["step_index"]] = row
     contrasts = []
-    method_values = {"raw": {"initial": [], "later": []}, "fog": {"initial": [], "later": []}}
+    method_values = {"raw": {"initial": [], "later": []}, "focusgui": {"initial": [], "later": []}}
     for steps in grouped.values():
         if 0 not in steps or later_step not in steps:
             continue
-        for method in ("raw", "fog"):
+        for method in ("raw", "focusgui"):
             method_values[method]["initial"].append(float(steps[0][method][metric]))
             method_values[method]["later"].append(float(steps[later_step][method][metric]))
-        initial = method_values["fog"]["initial"][-1] - method_values["raw"]["initial"][-1]
-        later = method_values["fog"]["later"][-1] - method_values["raw"]["later"][-1]
+        initial = method_values["focusgui"]["initial"][-1] - method_values["raw"]["initial"][-1]
+        later = method_values["focusgui"]["later"][-1] - method_values["raw"]["later"][-1]
         contrasts.append(later - initial)
     values = np.asarray(contrasts, dtype=np.float64)
     boot = np.empty(iterations, dtype=np.float64)
@@ -211,7 +211,7 @@ def aggregate_by_step(
         }
         for metric in METRICS:
             metric_summary = {}
-            for method in ("raw", "fog"):
+            for method in ("raw", "focusgui"):
                 estimate = mean_metric(rows, method, metric)
                 low, high = cluster_bootstrap(
                     rows,
@@ -224,7 +224,7 @@ def aggregate_by_step(
             low, high = cluster_bootstrap(
                 rows, lambda sample, metric=metric: paired_gain(sample, metric), rng, iterations
             )
-            metric_summary["fog_minus_raw"] = {"mean": estimate, "ci95": [low, high]}
+            metric_summary["focusgui_minus_raw"] = {"mean": estimate, "ci95": [low, high]}
             summary["metrics"][metric] = metric_summary
         output.append(summary)
     return output
@@ -254,7 +254,7 @@ def aggregate_category_depth(
             }
             for metric in METRICS:
                 summary["metrics"][metric] = {}
-                for method in ("raw", "fog"):
+                for method in ("raw", "focusgui"):
                     estimate = mean_metric(rows, method, metric)
                     low, high = cluster_bootstrap(
                         rows,
@@ -275,7 +275,7 @@ def aggregate_category_depth(
                     rng,
                     iterations,
                 )
-                summary["metrics"][metric]["fog_minus_raw"] = {
+                summary["metrics"][metric]["focusgui_minus_raw"] = {
                     "mean": estimate,
                     "ci95": [low, high],
                 }
@@ -286,10 +286,10 @@ def aggregate_category_depth(
 def plot_results(step_results: Sequence[Dict], out_dir: Path) -> None:
     x = np.arange(len(step_results))
     fig, axes = plt.subplots(1, 2, figsize=(12.4, 4.6), sharey=True)
-    colors = {"raw": "#6B7280", "fog": "#007C91"}
-    labels = {"raw": "Frozen Qwen", "fog": "Qwen + FOG"}
+    colors = {"raw": "#6B7280", "focusgui": "#007C91"}
+    labels = {"raw": "Frozen Qwen", "focusgui": "Qwen + FocusGUI"}
     for axis, metric in zip(axes, METRICS):
-        for method in ("raw", "fog"):
+        for method in ("raw", "focusgui"):
             means = np.asarray([row["metrics"][metric][method]["mean"] for row in step_results])
             cis = np.asarray([row["metrics"][metric][method]["ci95"] for row in step_results])
             errors = np.vstack([means - cis[:, 0], cis[:, 1] - means])
@@ -325,18 +325,18 @@ def plot_results(step_results: Sequence[Dict], out_dir: Path) -> None:
     fig.suptitle("Performance as Interaction Depth Increases", fontsize=14, fontweight="bold")
     fig.tight_layout()
     for suffix in ("png", "pdf", "svg"):
-        fig.savefig(out_dir / f"fog_performance_vs_step.{suffix}", dpi=300, bbox_inches="tight")
+        fig.savefig(out_dir / f"focusgui_performance_vs_step.{suffix}", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
 def plot_category_depth(category_results: Dict[str, List[Dict]], metric: str, out_dir: Path) -> None:
-    colors = {"raw": "#6B7280", "fog": "#007C91"}
-    labels = {"raw": "Frozen Qwen", "fog": "Qwen + FOG"}
+    colors = {"raw": "#6B7280", "focusgui": "#007C91"}
+    labels = {"raw": "Frozen Qwen", "focusgui": "Qwen + FocusGUI"}
     fig, axes = plt.subplots(2, 3, figsize=(13.2, 8.0), sharex=True, sharey=True)
     for axis, (category, display_category) in zip(axes.flat, CATEGORY_ORDER):
         rows = category_results[category]
         x = np.arange(len(rows))
-        for method in ("raw", "fog"):
+        for method in ("raw", "focusgui"):
             means = np.asarray([row["metrics"][metric][method]["mean"] for row in rows])
             cis = np.asarray([row["metrics"][metric][method]["ci95"] for row in rows])
             errors = np.vstack([means - cis[:, 0], cis[:, 1] - means])
@@ -377,7 +377,7 @@ def plot_category_depth(category_results: Dict[str, List[Dict]], metric: str, ou
         fontweight="bold",
     )
     fig.tight_layout()
-    stem = "fog_category_depth_type" if metric == "type_match" else "fog_category_depth_exact"
+    stem = "focusgui_category_depth_type" if metric == "type_match" else "focusgui_category_depth_exact"
     for suffix in ("png", "pdf", "svg"):
         fig.savefig(out_dir / f"{stem}.{suffix}", dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -385,15 +385,15 @@ def plot_category_depth(category_results: Dict[str, List[Dict]], metric: str, ou
 
 def markdown_report(report: Dict) -> str:
     lines = [
-        "# FOG Trajectory-Depth Analysis",
+        "# FocusGUI Trajectory-Depth Analysis",
         "",
-        "This analysis pairs the real frozen-Qwen and FOG generations on the exact same "
+        "This analysis pairs the real frozen-Qwen and FocusGUI generations on the exact same "
         "episode-disjoint held-out split. Test labels are used only to score predictions that had "
         "already been generated.",
         "",
         "## Per-Step Results",
         "",
-        "| Step | Steps | Raw Type | FOG Type | Gain | Raw Exact | FOG Exact | Gain |",
+        "| Step | Steps | Raw Type | FocusGUI Type | Gain | Raw Exact | FocusGUI Exact | Gain |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in report["by_step"]:
@@ -401,9 +401,9 @@ def markdown_report(report: Dict) -> str:
         exact_stats = row["metrics"]["exact_match"]
         lines.append(
             f"| {row['step']} | {row['steps']} | {type_stats['raw']['mean']:.4f} | "
-            f"{type_stats['fog']['mean']:.4f} | {type_stats['fog_minus_raw']['mean']:+.4f} | "
-            f"{exact_stats['raw']['mean']:.4f} | {exact_stats['fog']['mean']:.4f} | "
-            f"{exact_stats['fog_minus_raw']['mean']:+.4f} |"
+            f"{type_stats['focusgui']['mean']:.4f} | {type_stats['focusgui_minus_raw']['mean']:+.4f} | "
+            f"{exact_stats['raw']['mean']:.4f} | {exact_stats['focusgui']['mean']:.4f} | "
+            f"{exact_stats['focusgui_minus_raw']['mean']:+.4f} |"
         )
     lines.extend(
         [
@@ -421,7 +421,7 @@ def markdown_report(report: Dict) -> str:
     for category, display_category in CATEGORY_ORDER:
         rows = report["by_category_and_depth"][category]
         for metric in METRICS:
-            gains = [row["metrics"][metric]["fog_minus_raw"]["mean"] for row in rows]
+            gains = [row["metrics"][metric]["focusgui_minus_raw"]["mean"] for row in rows]
             lines.append(
                 f"| {display_category} | {DISPLAY_METRICS[metric]} | "
                 + " | ".join(f"{gain:+.4f}" for gain in gains)
@@ -437,7 +437,7 @@ def markdown_report(report: Dict) -> str:
             "## Depth-Dependent Gain",
             "",
             "The primary trend test is restricted a priori to steps 0--4, for which every point has "
-            "at least 33 actions. It regresses the paired correctness gain (FOG minus raw) on step "
+            "at least 33 actions. It regresses the paired correctness gain (FocusGUI minus raw) on step "
             "index and bootstraps complete episodes.",
             "",
             "| Metric | Gain slope per step | 95% episode-clustered CI |",
@@ -455,7 +455,7 @@ def markdown_report(report: Dict) -> str:
     lines.extend(
         [
             "",
-            "A same-trajectory contrast further compares the FOG-minus-raw gain at step 4 against "
+            "A same-trajectory contrast further compares the FocusGUI-minus-raw gain at step 4 against "
             "the gain at step 0 using only the 33 episodes that contain both actions.",
             "",
             "| Metric | Matched episodes | Step-4 minus step-0 gain | 95% CI |",
@@ -473,7 +473,7 @@ def markdown_report(report: Dict) -> str:
     lines.extend(
         [
             "",
-            "The matched raw/FOG accuracies underlying that contrast are:",
+            "The matched raw/FocusGUI accuracies underlying that contrast are:",
             "",
             "| Metric | Method | Step 0 | Step 4 | Change |",
             "|---|---|---:|---:|---:|",
@@ -481,7 +481,7 @@ def markdown_report(report: Dict) -> str:
     )
     for metric in METRICS:
         result = report["matched_step4_vs_step0"][metric]
-        for method, display_method in (("raw", "Frozen Qwen"), ("fog", "Qwen + FOG")):
+        for method, display_method in (("raw", "Frozen Qwen"), ("focusgui", "Qwen + FocusGUI")):
             values = result["matched_method_accuracy"][method]
             lines.append(
                 f"| {DISPLAY_METRICS[metric]} | {display_method} | "
@@ -493,13 +493,13 @@ def markdown_report(report: Dict) -> str:
             "",
             "## Interpretation",
             "",
-            "Raw Qwen degrades markedly over the first five interaction steps, whereas FOG remains "
-            "substantially more stable. Consequently, FOG's paired advantage grows with interaction "
+            "Raw Qwen degrades markedly over the first five interaction steps, whereas FocusGUI remains "
+            "substantially more stable. Consequently, FocusGUI's paired advantage grows with interaction "
             "depth over steps 0--4. This supports the claim that the frozen backbone is increasingly "
             "susceptible to sequential distraction and that focused perception mitigates this "
             "depth-dependent degradation.",
             "",
-            "The `5+` bin remains favorable to FOG but is noisy and does not continue the monotonic "
+            "The `5+` bin remains favorable to FocusGUI but is noisy and does not continue the monotonic "
             "trend; it contains only 27 actions from 12 episodes and must be shown rather than hidden.",
             "",
             "## Claim Boundary",
@@ -513,11 +513,11 @@ def markdown_report(report: Dict) -> str:
             "",
             "## Artifacts",
             "",
-            "- `fog_performance_vs_step.png` / `.pdf` / `.svg`",
-            "- `fog_category_depth_exact.png` / `.pdf` / `.svg`",
-            "- `fog_category_depth_type.png` / `.pdf` / `.svg`",
+            "- `focusgui_performance_vs_step.png` / `.pdf` / `.svg`",
+            "- `focusgui_category_depth_exact.png` / `.pdf` / `.svg`",
+            "- `focusgui_category_depth_type.png` / `.pdf` / `.svg`",
             "- `trajectory_depth_statistics.json`",
-            "- Reproduction: `python scripts/analyze_fog_trajectory_depth.py`",
+            "- Reproduction: `python scripts/analyze_focusgui_trajectory_depth.py`",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -526,12 +526,12 @@ def markdown_report(report: Dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--fog-results",
-        default="logs/ares_lm_adapter_qwen_semantic_strict_gating/results.json",
+        "--focusgui-results",
+        default="logs/focusgui_qwen/results.json",
     )
     parser.add_argument(
         "--out-dir",
-        default="reports/eib_results_summary_20260705/qwen_ablations/trajectory_depth",
+        default="reports/focusgui/qwen_ablations/trajectory_depth",
     )
     parser.add_argument("--bootstrap-iterations", type=int, default=10_000)
     parser.add_argument("--seed", type=int, default=20260826)
@@ -540,17 +540,17 @@ def main() -> None:
     docs = load_docs()
     doc_by_id = {int(doc["global_id"]): doc for doc in docs}
     raw = load_raw_evaluations(docs)
-    fog_report = json.loads((REPO_ROOT / args.fog_results).read_text(encoding="utf-8"))
-    if fog_report.get("legacy_classification_head_used") is not False:
-        raise ValueError("Expected corrected FOG generation results, not a legacy classification head")
-    if not all(fog_report.get(key) is True for key in ("backbone_frozen", "decoder_frozen", "lm_head_frozen")):
-        raise ValueError("FOG result does not declare a fully frozen backbone, decoder, and LM head")
+    focusgui_report = json.loads((REPO_ROOT / args.focusgui_results).read_text(encoding="utf-8"))
+    if focusgui_report.get("legacy_classification_head_used") is not False:
+        raise ValueError("Expected corrected FocusGUI generation results, not a legacy classification head")
+    if not all(focusgui_report.get(key) is True for key in ("backbone_frozen", "decoder_frozen", "lm_head_frozen")):
+        raise ValueError("FocusGUI result does not declare a fully frozen backbone, decoder, and LM head")
 
-    fog_records = {int(row["global_id"]): row for row in fog_report["records"]}
-    if len(fog_records) != 508:
-        raise ValueError(f"Expected 508 FOG test records, found {len(fog_records)}")
+    focusgui_records = {int(row["global_id"]): row for row in focusgui_report["records"]}
+    if len(focusgui_records) != 508:
+        raise ValueError(f"Expected 508 FocusGUI test records, found {len(focusgui_records)}")
     records = []
-    for global_id, fog_row in sorted(fog_records.items()):
+    for global_id, focusgui_row in sorted(focusgui_records.items()):
         if global_id not in raw or global_id not in doc_by_id:
             raise ValueError(f"Unmatched global_id={global_id}")
         doc = doc_by_id[global_id]
@@ -561,19 +561,19 @@ def main() -> None:
                 "step_index": int(doc.get("step_index", 0)),
                 "task_category_full": str(doc.get("task_category_full", "unknown")),
                 "raw": raw[global_id],
-                "fog": fog_row["eval"],
+                "focusgui": focusgui_row["eval"],
             }
         )
 
     observed_raw = {metric: mean_metric(records, "raw", metric) for metric in METRICS}
-    observed_fog = {metric: mean_metric(records, "fog", metric) for metric in METRICS}
+    observed_focusgui = {metric: mean_metric(records, "focusgui", metric) for metric in METRICS}
     expected_raw = {"type_match": 0.49606299212598426, "exact_match": 0.12598425196850394}
-    expected_fog = {"type_match": 0.7165354330708661, "exact_match": 0.4015748031496063}
+    expected_focusgui = {"type_match": 0.7165354330708661, "exact_match": 0.4015748031496063}
     for metric in METRICS:
         if not np.isclose(observed_raw[metric], expected_raw[metric]):
             raise ValueError(f"Raw {metric} integrity mismatch: {observed_raw[metric]}")
-        if not np.isclose(observed_fog[metric], expected_fog[metric]):
-            raise ValueError(f"FOG {metric} integrity mismatch: {observed_fog[metric]}")
+        if not np.isclose(observed_focusgui[metric], expected_focusgui[metric]):
+            raise ValueError(f"FocusGUI {metric} integrity mismatch: {observed_focusgui[metric]}")
 
     rng = np.random.default_rng(args.seed)
     category_depth_results = aggregate_category_depth(records, rng, args.bootstrap_iterations)
@@ -584,11 +584,11 @@ def main() -> None:
             "test_steps": len(records),
             "test_episodes": len({row["episode_key"] for row in records}),
             "raw_source_files": [path for path, _ in RAW_SAMPLE_FILES],
-            "fog_source": args.fog_results,
+            "focusgui_source": args.focusgui_results,
             "bootstrap_iterations": args.bootstrap_iterations,
             "seed": args.seed,
         },
-        "integrity_check": {"raw": observed_raw, "fog": observed_fog},
+        "integrity_check": {"raw": observed_raw, "focusgui": observed_focusgui},
         "by_step": aggregate_by_step(records, rng, args.bootstrap_iterations),
         "by_category_and_depth": category_depth_results,
         "gain_slope_0_to_4": {

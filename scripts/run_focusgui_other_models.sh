@@ -6,7 +6,7 @@ GPU="${GPU:-0}"
 ZERO_RESIDUAL_CHECK="${ZERO_RESIDUAL_CHECK:-3}"
 RESUME_COMPLETED="${RESUME_COMPLETED:-0}"
 RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
-RUN_ROOT="${RUN_ROOT:-${REPO_ROOT}/logs/ares_lm_adapter_other_models_${RUN_ID}}"
+RUN_ROOT="${RUN_ROOT:-${REPO_ROOT}/logs/focusgui_lm_adapter_other_models_${RUN_ID}}"
 
 if [[ "${RUN_ROOT}" != /* ]]; then
   RUN_ROOT="${REPO_ROOT}/${RUN_ROOT}"
@@ -81,7 +81,7 @@ run_model() {
 }
 
 cd "${REPO_ROOT}"
-printf '[%s] Corrected FOG sequential run started.\n' "${STARTED_AT}"
+printf '[%s] Corrected FocusGUI sequential run started.\n' "${STARTED_AT}"
 printf 'Repository: %s\nRun root: %s\nGPU: %s\n' "${REPO_ROOT}" "${RUN_ROOT}" "${GPU}"
 printf 'Resume completed stages: %s\n' "${RESUME_COMPLETED}"
 printf 'Git commit: %s\n' "$(git rev-parse --verify HEAD 2>/dev/null || printf 'unavailable')"
@@ -91,19 +91,19 @@ printf '\n'
 
 run_model \
   "MiniCPM-o-4.5" \
-  "${REPO_ROOT}/scripts/train_ares_lm_adapter_minicpm.sh" \
+  "${REPO_ROOT}/scripts/train_focusgui_lm_adapter_minicpm.sh" \
   "${RUN_ROOT}/minicpm" \
   "$@"
 
 run_model \
   "VITA-1.5" \
-  "${REPO_ROOT}/scripts/train_ares_lm_adapter_vita.sh" \
+  "${REPO_ROOT}/scripts/train_focusgui_lm_adapter_vita.sh" \
   "${RUN_ROOT}/vita" \
   "$@"
 
 run_model \
   "Baichuan-Omni-1d5" \
-  "${REPO_ROOT}/scripts/train_ares_lm_adapter_baichuan.sh" \
+  "${REPO_ROOT}/scripts/train_focusgui_lm_adapter_baichuan.sh" \
   "${RUN_ROOT}/baichuan" \
   "$@"
 

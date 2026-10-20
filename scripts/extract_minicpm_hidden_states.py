@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Extract frozen MiniCPM-o multimodal hidden states for the FOG pipeline.
+"""Extract frozen MiniCPM-o multimodal hidden states for the FocusGUI pipeline.
 
 The extractor runs MiniCPM-o's real local chat preprocessing/forward path and
 captures the long-sequence LLM prefill hidden state with a forward hook.  It
@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from lmms_eval.models.simple.minicpm_o import MiniCPMo  # noqa: E402
 from lmms_eval.tasks.agentcpm_gui.utils import unified_v2_doc_to_messages  # noqa: E402
-from scripts.fog_common import load_docs, projection_matrix  # noqa: E402
+from scripts.focusgui_common import load_docs, projection_matrix  # noqa: E402
 
 logger.remove()
 
@@ -123,7 +123,7 @@ def extract_one(model: MiniCPMo, doc: Dict, proj_dim: int, projection_seed: int,
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="logs/fog_evidence/minicpm_o_4_5_hidden_p256_strict.npz")
+    parser.add_argument("--out", default="logs/focusgui_evidence/minicpm_o_4_5_hidden_p256_strict.npz")
     parser.add_argument("--pretrained", default=os.environ.get("MINICPM_O_PRETRAINED", "openbmb/MiniCPM-o-4_5"))
     parser.add_argument("--proj-dim", type=int, default=256)
     parser.add_argument("--projection-seed", type=int, default=20260629)

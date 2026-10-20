@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Extract label-free, modality-aligned frozen Qwen evidence for FOG.
+"""Extract label-free, modality-aligned frozen Qwen evidence for FocusGUI.
 
 The extractor performs one ordinary multimodal prompt forward per step. It
 never reads action targets or benchmark task categories. Token positions are
@@ -27,8 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from lmms_eval.models.simple.qwen2_5_omni import Qwen2_5_Omni  # noqa: E402
-from scripts.train_ares_lm_adapter_qwen import model_device, prepare_prompt  # noqa: E402
-from scripts.fog_common import load_docs  # noqa: E402
+from scripts.train_focusgui_lm_adapter_qwen import model_device, prepare_prompt  # noqa: E402
+from scripts.focusgui_common import load_docs  # noqa: E402
 
 
 def cache_key(doc: Dict) -> str:
@@ -231,7 +231,7 @@ def main() -> None:
         device_map="auto",
     )
     metadata = {
-        "schema": "qwen_ares_modality_evidence_v1",
+        "schema": "qwen_focusgui_modality_evidence_v1",
         "label_free": True,
         "current_screen_rule": "last image span in V2 prompt",
         "shard_index": args.shard_index,
@@ -245,7 +245,7 @@ def main() -> None:
     }
     completed = 0
     failures: List[Dict] = []
-    for doc in tqdm(selected, desc=f"Qwen FOG evidence shard {args.shard_index}"):
+    for doc in tqdm(selected, desc=f"Qwen FocusGUI evidence shard {args.shard_index}"):
         key = cache_key(doc)
         if key in records:
             continue

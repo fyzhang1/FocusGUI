@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Plot held-out channel priorities for the corrected generative FOG model."""
+"""Plot held-out channel priorities for the corrected generative FocusGUI model."""
 
 from __future__ import annotations
 
@@ -209,11 +209,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--results",
-        default="logs/ares_lm_adapter_qwen_semantic_strict_gating/results.json",
+        default="logs/focusgui_qwen/results.json",
     )
     parser.add_argument(
         "--out-dir",
-        default="reports/eib_results_summary_20260705/qwen_ablations/channel_prioritization",
+        default="reports/focusgui/qwen_ablations/channel_prioritization",
     )
     args = parser.parse_args()
 
@@ -221,11 +221,11 @@ def main() -> None:
     raw = source.read_bytes()
     report = json.loads(raw)
     if report.get("decoder_frozen") is not True or report.get("lm_head_frozen") is not True:
-        raise ValueError("The source is not a corrected frozen-decoder/frozen-LM-head FOG result.")
+        raise ValueError("The source is not a corrected frozen-decoder/frozen-LM-head FocusGUI result.")
     if report.get("legacy_classification_head_used") is not False:
         raise ValueError("Legacy classification-head output is not valid for this analysis.")
     if report.get("gate_type") != "frozen-fullmodal-query-conditioned additive evidence posterior":
-        raise ValueError("The source does not contain the dynamic FOG evidence posterior.")
+        raise ValueError("The source does not contain the dynamic FocusGUI evidence posterior.")
 
     records = report.get("records", [])
     expected = int(report["split"]["test_steps"])
@@ -278,12 +278,12 @@ def main() -> None:
     colorbar.set_label(r"Mean evidence weight $\alpha_t^{(m)}$", fontsize=9.2)
     colorbar.ax.tick_params(labelsize=8)
     fig.suptitle(
-        "FOG channel prioritization on the held-out OmniGUI test split",
+        "FocusGUI channel prioritization on the held-out OmniGUI test split",
         fontsize=12.4,
         fontweight="semibold",
     )
     for suffix in ("pdf", "png", "svg"):
-        fig.savefig(out_dir / f"ares_channel_prioritization.{suffix}", dpi=300, bbox_inches="tight")
+        fig.savefig(out_dir / f"focusgui_channel_prioritization.{suffix}", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
     category_shift = category_matrix - overall[:, None]
@@ -333,11 +333,11 @@ def main() -> None:
 
     category_range = 100.0 * (category_matrix.max(axis=1) - category_matrix.min(axis=1))
     phase_range = 100.0 * (phase_matrix.max(axis=1) - phase_matrix.min(axis=1))
-    report_md = f"""# Corrected FOG Channel Prioritization
+    report_md = f"""# Corrected FocusGUI Channel Prioritization
 
-This analysis uses the corrected generative FOG result, in which the original omni-modal decoder and LM head are frozen and no legacy classification head is used. All statistics come from the `508` held-out test actions (`142` episodes). Task labels and step indices are used only to aggregate post-inference weights; they are never inputs to the gate.
+This analysis uses the corrected generative FocusGUI result, in which the original omni-modal decoder and LM head are frozen and no legacy classification head is used. All statistics come from the `508` held-out test actions (`142` episodes). Task labels and step indices are used only to aggregate post-inference weights; they are never inputs to the gate.
 
-![FOG channel prioritization](ares_channel_prioritization.png)
+![FocusGUI channel prioritization](focusgui_channel_prioritization.png)
 
 ## Task-Category Priority (%)
 

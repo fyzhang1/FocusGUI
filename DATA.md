@@ -12,7 +12,7 @@ huggingface-cli download XIAOCHENLIN00zz/OmniGUI \
   --local-dir data
 ```
 
-The FOG pipeline expects at least:
+The FocusGUI pipeline expects at least:
 
 ```text
 data/

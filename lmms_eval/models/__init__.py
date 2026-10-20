@@ -1,6 +1,6 @@
-"""Model registry for the compact FOG release.
+"""Model registry for the compact FocusGUI release.
 
-Only the four omni-modal backbones evaluated by FOG are exposed here.  Model
+Only the four omni-modal backbones evaluated by FocusGUI are exposed here.  Model
 modules are imported lazily so optional, backbone-specific dependencies remain
 isolated until that backbone is selected.
 """

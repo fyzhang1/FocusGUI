@@ -57,8 +57,11 @@ try:
     )
     from vita.util.utils import disable_torch_init
 except Exception as e:
-    eval_logger.error(f"Error {e} in loading VITA")
-    eval_logger.debug("You can set PYTHONPATH to include vita to make the import successful if it is not relative to deps")
+    raise ImportError(
+        "VITA runtime could not be imported. Install its upstream dependencies "
+        "and add the VITA source tree to PYTHONPATH (or set VITA_CODE_PATH "
+        "when using the FocusGUI launcher/extractor)."
+    ) from e
 
 
 class VITA(lmms):

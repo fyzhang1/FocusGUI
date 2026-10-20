@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "focusgui"
+version = "0.1.0"
+description = "FocusGUI: focused perception for frozen omni-modal GUI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.6", "torchvision", "transformers>=4.51,<5", "accelerate",
+  "numpy<2", "scikit-learn", "datasets==2.16.1", "evaluate",
+  "pillow", "pyyaml", "loguru", "tqdm", "sqlitedict", "jinja2", "pytz",
+  "librosa", "soundfile", "audioread", "av", "decord", "imageio-ffmpeg",
+  "moviepy>=2,<3", "opencv-python-headless", "einops", "sentencepiece",
+  "matplotlib", "pandas", "sacrebleu", "pytablewriter", "more-itertools",
+  "tenacity", "packaging", "regex", "nltk", "rouge-score", "hf-transfer",
+]
+
+[project.optional-dependencies]
+qwen = ["transformers==4.57.6", "qwen-omni-utils==0.0.9"]
+
+[project.urls]
+Repository = "https://github.com/fyzhang1/FocusGUI"
+Paper = "https://arxiv.org/abs/2610.26203"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lmms_eval*"]
+
+[tool.setuptools.package-data]
+"lmms_eval" = ["tasks/**/*.yaml"]

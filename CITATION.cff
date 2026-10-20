@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use FocusGUI, please cite the accompanying paper."
+title: "Focused Omni-Modal GUI Agents"
+type: software
+version: 0.1.0
+authors: &authors
+  - family-names: Zhang
+    given-names: Fuyao
+  - family-names: He
+    given-names: Wenwen
+  - family-names: Zhang
+    given-names: Jiaming
+  - family-names: Hao
+    given-names: Yurong
+  - family-names: Wang
+    given-names: Xuan
+  - family-names: Guan
+    given-names: Guowei
+  - family-names: Wang
+    given-names: Che
+  - family-names: Huang
+    given-names: Longtao
+  - family-names: Lim
+    given-names: Wei Yang Bryan
+repository-code: "https://github.com/fyzhang1/FocusGUI"
+url: "https://arxiv.org/abs/2610.26203"
+preferred-citation:
+  type: article
+  title: "Focused Omni-Modal GUI Agents"
+  authors: *authors
+  journal: arXiv
+  year: 2026
+  doi: "10.48550/arXiv.2610.26203"
+  url: "https://arxiv.org/abs/2610.26203"

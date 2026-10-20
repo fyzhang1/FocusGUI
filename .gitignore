@@ -1,6 +1,42 @@
 # OmniGUI data are distributed separately and must never be committed here.
 /data/
 
+# Publish only the maintained release; local archives remain on disk.
+/*
+!/.gitignore
+!/.env.example
+!/README.md
+!/DATA.md
+!/pyproject.toml
+!/CITATION.cff
+!/assets/
+!/lmms_eval/
+!/scripts/
+/lmms_eval/pyproject.toml
+/scripts/*
+!/scripts/focusgui_common.py
+!/scripts/prepare_omnigui_chunks.py
+!/scripts/extract_observation_descriptors.py
+!/scripts/extract_qwen_focusgui_evidence.py
+!/scripts/extract_minicpm_hidden_states.py
+!/scripts/extract_vita_hidden_states.py
+!/scripts/extract_baichuan_hidden_states.py
+!/scripts/train_focusgui_lm_adapter_qwen.py
+!/scripts/train_focusgui_lm_adapter_multibackbone.py
+!/scripts/train_focusgui_lm_adapter_minicpm.sh
+!/scripts/train_focusgui_lm_adapter_vita.sh
+!/scripts/train_focusgui_lm_adapter_baichuan.sh
+!/scripts/run_focusgui_other_models.sh
+!/scripts/run_qwen_focusgui_fusion_ablation.sh
+!/scripts/analyze_focusgui_trajectory_depth.py
+!/scripts/plot_focusgui_channel_prioritization.py
+!/scripts/aggregate_qwen2_5_omni_chunks.py
+!/scripts/task_v2_qwen2_5_omni.sh
+!/scripts/task_v2_qwen2_5_omni_2gpu.sh
+!/scripts/task_v2_minicpm_o.sh
+!/scripts/task_v2_vita.sh
+!/scripts/task_v2_baichuan_omni.sh
+
 # Generated evidence, checkpoints, predictions, and experiment logs.
 /logs/
 /outputs/

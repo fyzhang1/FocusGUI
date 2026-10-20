@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-"""Train FOG as latent-token conditioning for the frozen Qwen LM decoder.
+"""Train FocusGUI as latent-token conditioning for the frozen Qwen LM decoder.
 
-Unlike the legacy EIB action head, this implementation never predicts an
-action class or coordinate grid directly. FOG produces continuous prefix
-tokens; the original frozen Qwen thinker and LM head remain responsible for
-token-level action modeling and autoregressive generation.
+FocusGUI conditions the action-boundary embeddings with continuous residuals.
+The original frozen Qwen thinker and LM head perform token-level action
+modeling and autoregressive generation.
 """
 
 from __future__ import annotations
@@ -46,7 +45,7 @@ from lmms_eval.tasks.agentcpm_gui.utils import (  # noqa: E402
     unified_v2_doc_to_messages,
 )
 from qwen_omni_utils import process_mm_info  # noqa: E402
-from scripts.fog_common import load_docs, split_by_episode  # noqa: E402
+from scripts.focusgui_common import load_docs, split_by_episode  # noqa: E402
 
 eval_logger.remove()
 logging.getLogger().setLevel(logging.ERROR)
@@ -286,7 +285,7 @@ def canonical_action_target(doc: Dict) -> str:
     return json.dumps(action, ensure_ascii=False, separators=(",", ":"))
 
 
-class FOGLatentTokenAdapter(nn.Module):
+class FocusGUILatentTokenAdapter(nn.Module):
     """Fuse observable evidence and condition the frozen action decoder."""
 
     def __init__(
@@ -346,7 +345,7 @@ class FOGLatentTokenAdapter(nn.Module):
         # stable while leaving both posterior moments fully trainable.
         nn.init.zeros_(self.logvar.weight)
         nn.init.constant_(self.logvar.bias, initial_logvar)
-        # Identity-preserving initialization: before learning, FOG leaves the
+        # Identity-preserving initialization: before learning, FocusGUI leaves the
         # frozen decoder exactly unchanged while gradients still reach W_p.
         nn.init.zeros_(self.latent_projection.weight)
         nn.init.zeros_(self.latent_projection.bias)
@@ -441,7 +440,7 @@ def distributed_ready() -> bool:
     return dist.is_available() and dist.is_initialized()
 
 
-def unwrap_adapter(adapter: nn.Module) -> FOGLatentTokenAdapter:
+def unwrap_adapter(adapter: nn.Module) -> FocusGUILatentTokenAdapter:
     return adapter.module if isinstance(adapter, DDP) else adapter
 
 
@@ -496,7 +495,7 @@ def prepare_conditioned_inputs(
     im_end_positions = (prompt_ids[0] == im_end_token_id).nonzero(as_tuple=False).flatten()
     if im_end_positions.numel() == 0:
         raise ValueError("Could not locate the final user <|im_end|> token in the Qwen prompt.")
-    # The generation template already appends the assistant-role prefix. FOG
+    # The generation template already appends the assistant-role prefix. FocusGUI
     # conditions the final K prompt embeddings at this action boundary, rather
     # than overwriting arbitrary words inside the user instruction.
     anchor_end = int(prompt_ids.shape[1])
@@ -523,7 +522,7 @@ def action_cue_residual(
     latent_tokens: torch.Tensor,
     residual_scale: float,
 ):
-    """Add FOG residuals while retaining Qwen's native multimodal forward path.
+    """Add FocusGUI residuals while retaining Qwen's native multimodal forward path.
 
     A forward hook is necessary here: supplying ``inputs_embeds`` directly to
     Qwen skips its internal replacement of audio/image/video placeholder
@@ -534,7 +533,7 @@ def action_cue_residual(
         raise ValueError("Current Qwen backend intentionally supports batch size 1 only.")
     anchor_start = anchor_end - latent_tokens.shape[1]
     if anchor_start < 0:
-        raise ValueError("The Qwen prompt is shorter than the requested FOG latent-token span.")
+        raise ValueError("The Qwen prompt is shorter than the requested FocusGUI latent-token span.")
     if residual_scale == 0.0:
         yield
         return
@@ -726,7 +725,7 @@ def evaluate_teacher_forcing(
     sample_loss_sum = token_loss_sum = kl_sum = weight_sum = 0.0
     token_count = 0
     for local_index, doc_index in enumerate(
-        tqdm(selected, desc="FOG dev teacher forcing", disable=not show_progress)
+        tqdm(selected, desc="FocusGUI dev teacher forcing", disable=not show_progress)
     ):
         with torch.no_grad():
             latent, mu, logvar, weights = adapter(
@@ -783,11 +782,11 @@ def main() -> None:
     parser.add_argument(
         "--semantic-evidence-cache",
         default=(
-            "logs/ares_evidence/qwen_modality_semantic_v1_shard0.npz,"
-            "logs/ares_evidence/qwen_modality_semantic_v1_shard1.npz"
+            "logs/focusgui_evidence/qwen_shard0.npz,"
+            "logs/focusgui_evidence/qwen_shard1.npz"
         ),
     )
-    parser.add_argument("--out-dir", default="logs/ares_lm_adapter_qwen_strict")
+    parser.add_argument("--out-dir", default="logs/focusgui_qwen")
     parser.add_argument("--checkpoint", default="")
     parser.add_argument("--test-ratio", type=float, default=0.20)
     parser.add_argument("--dev-ratio", type=float, default=0.10)
@@ -854,7 +853,7 @@ def main() -> None:
         "--activation-offload",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Offload saved frozen-decoder activations for long sequences during FOG training.",
+        help="Offload saved frozen-decoder activations for long sequences during FocusGUI training.",
     )
     parser.add_argument(
         "--activation-offload-threshold",
@@ -874,7 +873,7 @@ def main() -> None:
     rank, local_rank, world_size = distributed_info()
     if world_size > 1:
         if not torch.cuda.is_available():
-            raise RuntimeError("Distributed FOG training requires CUDA.")
+            raise RuntimeError("Distributed FocusGUI training requires CUDA.")
         torch.cuda.set_device(local_rank)
         if args.raw_only or args.anchor_only:
             raise ValueError("Use a single process for --raw-only and --anchor-only controls.")
@@ -1044,7 +1043,7 @@ def main() -> None:
         thinker.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model_dim = int(thinker.config.get_text_config().hidden_size)
     num_latent_tokens = args.num_latent_tokens
-    adapter_core = FOGLatentTokenAdapter(
+    adapter_core = FocusGUILatentTokenAdapter(
         [x.shape[1] for x in train_groups],
         args.token_dim,
         args.z_dim,
@@ -1061,7 +1060,7 @@ def main() -> None:
         checkpoint = torch.load(checkpoint_path, map_location=model_device(model), weights_only=False)
         adapter_core.load_state_dict(checkpoint["adapter"])
     elif args.eval_only:
-        raise FileNotFoundError(f"FOG checkpoint does not exist: {checkpoint_path}")
+        raise FileNotFoundError(f"FocusGUI checkpoint does not exist: {checkpoint_path}")
 
     adapter: nn.Module
     if world_size > 1:
@@ -1077,7 +1076,7 @@ def main() -> None:
     else:
         adapter = adapter_core
     metadata = {
-        "method": "FOG latent-token conditioning through frozen Qwen decoder and LM head",
+        "method": "FocusGUI latent-token conditioning through frozen Qwen decoder and LM head",
         "split": split_metadata,
         "init_seed": init_seed,
         "group_names": group_names,
@@ -1174,7 +1173,7 @@ def main() -> None:
             started = time.time()
             iterator = tqdm(
                 local_order,
-                desc=f"FOG train epoch {epoch} rank {rank}",
+                desc=f"FocusGUI train epoch {epoch} rank {rank}",
                 disable=rank != 0,
             )
             for step, local_index in enumerate(iterator, start=1):
@@ -1304,7 +1303,7 @@ def main() -> None:
     local_records = []
     iterator = tqdm(
         local_test_indices,
-        desc=f"FOG held-out generation rank {rank}",
+        desc=f"FocusGUI held-out generation rank {rank}",
         disable=rank != 0,
     )
     for local_index, doc_index in enumerate(iterator):

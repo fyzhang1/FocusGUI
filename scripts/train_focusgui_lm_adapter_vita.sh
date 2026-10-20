@@ -9,10 +9,9 @@ if [[ -n "${VITA_CODE_PATH:-}" ]]; then
 fi
 
 cd "${REPO_ROOT}"
-CUDA_VISIBLE_DEVICES="${GPU}" conda run --no-capture-output -n omnigui \
-  python scripts/train_ares_lm_adapter_multibackbone.py \
+CUDA_VISIBLE_DEVICES="${GPU}" "${PYTHON:-python}" scripts/train_focusgui_lm_adapter_multibackbone.py \
   --backbone vita \
   --pretrained "${PRETRAINED}" \
-  --hidden-cache logs/fog_evidence/vita_1_5_hidden_p256_strict.npz \
-  --out-dir logs/ares_lm_adapter_vita_strict \
+  --hidden-cache logs/focusgui_evidence/vita_1_5_hidden_p256_strict.npz \
+  --out-dir logs/focusgui_lm_adapter_vita_strict \
   "$@"

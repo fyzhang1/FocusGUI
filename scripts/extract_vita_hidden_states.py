@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Extract frozen VITA multimodal hidden states for the FOG pipeline.
+"""Extract frozen VITA multimodal hidden states for the FocusGUI pipeline.
 
 This extractor follows the same local VITA preprocessing/generation path used
 by the OmniGUI raw evaluation: ``omni_doc_to_text`` provides the prompt and
@@ -27,10 +27,12 @@ from tqdm import tqdm
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
+if os.environ.get("VITA_CODE_PATH"):
+    sys.path.insert(0, os.environ["VITA_CODE_PATH"])
 
 from lmms_eval.models.simple.vita import VITA  # noqa: E402
 from lmms_eval.tasks.agentcpm_gui.utils import omni_doc_to_text, omni_doc_to_visual  # noqa: E402
-from scripts.fog_common import load_docs, projection_matrix  # noqa: E402
+from scripts.focusgui_common import load_docs, projection_matrix  # noqa: E402
 
 from vita.constants import DEFAULT_AUDIO_TOKEN, DEFAULT_IMAGE_TOKEN, IMAGE_TOKEN_INDEX  # noqa: E402
 from vita.conversation import SeparatorStyle, conv_templates  # noqa: E402
@@ -238,7 +240,7 @@ def extract_one(model: VITA, doc: Dict, proj_dim: int, projection_seed: int, max
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="logs/fog_evidence/vita_1_5_hidden_p256_strict.npz")
+    parser.add_argument("--out", default="logs/focusgui_evidence/vita_1_5_hidden_p256_strict.npz")
     parser.add_argument("--pretrained", default=os.environ.get("VITA_PRETRAINED", "VITA-MLLM/VITA-1.5"))
     parser.add_argument("--proj-dim", type=int, default=256)
     parser.add_argument("--projection-seed", type=int, default=20260705)

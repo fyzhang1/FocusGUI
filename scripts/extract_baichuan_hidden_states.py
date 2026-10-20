@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Extract frozen Baichuan-Omni hidden states for the FOG pipeline.
+"""Extract frozen Baichuan-Omni hidden states for the FocusGUI pipeline.
 
 This follows the local Baichuan-Omni preprocessing/generation path used by the
 raw evaluation.  It captures the LLM prefill hidden state with a forward hook
@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from lmms_eval.models.simple.baichuan_omni import BaichuanOmni  # noqa: E402
 from lmms_eval.tasks.agentcpm_gui.utils import unified_v2_doc_to_messages  # noqa: E402
-from scripts.fog_common import load_docs, projection_matrix  # noqa: E402
+from scripts.focusgui_common import load_docs, projection_matrix  # noqa: E402
 
 logger.remove()
 
@@ -147,7 +147,7 @@ def extract_one(model: BaichuanOmni, doc: Dict, proj_dim: int, projection_seed: 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="logs/fog_evidence/baichuan_omni_1d5_hidden_p256_strict.npz")
+    parser.add_argument("--out", default="logs/focusgui_evidence/baichuan_omni_1d5_hidden_p256_strict.npz")
     parser.add_argument("--pretrained", default=os.environ.get("BAICHUAN_OMNI_PRETRAINED", "baichuan-inc/Baichuan-Omni-1d5"))
     parser.add_argument("--proj-dim", type=int, default=256)
     parser.add_argument("--projection-seed", type=int, default=20260706)

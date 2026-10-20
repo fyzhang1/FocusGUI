@@ -1,15 +1,15 @@
 #!/usr/bin/env python
-"""Train corrected FOG LM-conditioning adapters on non-Qwen backbones.
+"""Train corrected FocusGUI LM-conditioning adapters on non-Qwen backbones.
 
 Supported frozen local backbones:
   * openbmb/MiniCPM-o-4_5
   * VITA-MLLM/VITA-1.5
   * baichuan-inc/Baichuan-Omni-1d5
 
-This is deliberately not the legacy EIB classification-head path. FOG maps
+This is deliberately not the standalone classification-head path. FocusGUI maps
 label-free evidence streams to residual prompt embeddings. The original
 backbone decoder and LM head remain frozen and autoregressively generate the
-action JSON. Only FOG parameters receive gradients.
+action JSON. Only FocusGUI parameters receive gradients.
 
 The portable evidence contract uses frozen model prefill hidden states plus
 label-free screen/audio/video descriptors. It excludes benchmark taxonomy,
@@ -47,7 +47,7 @@ from lmms_eval.tasks.agentcpm_gui.utils import (  # noqa: E402
     omni_doc_to_text,
     unified_v2_doc_to_messages,
 )
-from scripts.fog_common import load_docs  # noqa: E402
+from scripts.focusgui_common import load_docs  # noqa: E402
 
 eval_logger.remove()
 
@@ -55,18 +55,18 @@ eval_logger.remove()
 BACKBONE_DEFAULTS = {
     "minicpm": {
         "pretrained": "openbmb/MiniCPM-o-4_5",
-        "hidden_cache": "logs/fog_evidence/minicpm_o_4_5_hidden_p256_strict.npz",
-        "out_dir": "logs/ares_lm_adapter_minicpm_strict",
+        "hidden_cache": "logs/focusgui_evidence/minicpm_o_4_5_hidden_p256_strict.npz",
+        "out_dir": "logs/focusgui_lm_adapter_minicpm_strict",
     },
     "vita": {
         "pretrained": "VITA-MLLM/VITA-1.5",
-        "hidden_cache": "logs/fog_evidence/vita_1_5_hidden_p256_strict.npz",
-        "out_dir": "logs/ares_lm_adapter_vita_strict",
+        "hidden_cache": "logs/focusgui_evidence/vita_1_5_hidden_p256_strict.npz",
+        "out_dir": "logs/focusgui_lm_adapter_vita_strict",
     },
     "baichuan": {
         "pretrained": "baichuan-inc/Baichuan-Omni-1d5",
-        "hidden_cache": "logs/fog_evidence/baichuan_omni_1d5_hidden_p256_strict.npz",
-        "out_dir": "logs/ares_lm_adapter_baichuan_strict",
+        "hidden_cache": "logs/focusgui_evidence/baichuan_omni_1d5_hidden_p256_strict.npz",
+        "out_dir": "logs/focusgui_lm_adapter_baichuan_strict",
     },
 }
 
@@ -279,7 +279,7 @@ def build_raw_evidence(
     return [screen, audio, video, observable_state, global_hidden, query_hidden]
 
 
-class DeterministicFOGAdapter(nn.Module):
+class DeterministicFocusGUIAdapter(nn.Module):
     """Query-conditioned evidence posterior and deterministic action bottleneck."""
 
     def __init__(
@@ -358,9 +358,9 @@ def supervised_lm_head_window(lm_head: nn.Module, start: int, end: int):
 
 def add_action_residual(prompt: torch.Tensor, latent: torch.Tensor, scale: float) -> torch.Tensor:
     if prompt.ndim != 3 or prompt.shape[0] != 1 or latent.shape[0] != 1:
-        raise ValueError("FOG currently supports one sample per frozen-backbone forward.")
+        raise ValueError("FocusGUI currently supports one sample per frozen-backbone forward.")
     if prompt.shape[1] < latent.shape[1]:
-        raise ValueError("Prompt is shorter than the requested FOG residual span.")
+        raise ValueError("Prompt is shorter than the requested FocusGUI residual span.")
     start = prompt.shape[1] - latent.shape[1]
     residual = (scale * latent).to(device=prompt.device, dtype=prompt.dtype)
     return torch.cat([prompt[:, :start], prompt[:, start:] + residual], dim=1)
@@ -723,7 +723,7 @@ class BaichuanBackend(FrozenLMBackend):
     name = "Baichuan-Omni-1d5"
     modality_contract = (
         "Native Baichuan generation sees one primary medium (video > screenshot > audio); "
-        "FOG separately receives label-free descriptors for all observed media"
+        "FocusGUI separately receives label-free descriptors for all observed media"
     )
 
     def __init__(
@@ -912,7 +912,7 @@ def row_groups(groups: Sequence[np.ndarray], position: int, device: torch.device
 
 def evaluate_teacher_nll(
     backend: FrozenLMBackend,
-    adapter: DeterministicFOGAdapter,
+    adapter: DeterministicFocusGUIAdapter,
     docs: Sequence[Dict],
     indices: np.ndarray,
     groups: Sequence[np.ndarray],
@@ -941,7 +941,7 @@ def evaluate_teacher_nll(
 
 def generate_split(
     backend: FrozenLMBackend,
-    adapter: DeterministicFOGAdapter,
+    adapter: DeterministicFocusGUIAdapter,
     docs: Sequence[Dict],
     indices: np.ndarray,
     groups: Sequence[np.ndarray],
@@ -1006,11 +1006,11 @@ def checkpoint_metadata(
     split: Dict,
     evidence_audit: Dict,
     transform: EvidenceTransform,
-    adapter: DeterministicFOGAdapter,
+    adapter: DeterministicFocusGUIAdapter,
     training_log: List[Dict],
 ) -> Dict:
     return {
-        "method": "Corrected deterministic FOG latent residual conditioning through frozen decoder and LM head",
+        "method": "Corrected deterministic FocusGUI latent residual conditioning through frozen decoder and LM head",
         "backbone": backend.name,
         "backbone_pretrained": args.pretrained,
         "modality_contract": backend.modality_contract,
@@ -1044,7 +1044,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backbone", choices=sorted(BACKBONE_DEFAULTS), required=True)
     parser.add_argument("--pretrained", default=None)
     parser.add_argument("--hidden-cache", default=None)
-    parser.add_argument("--dense-cache", default="logs/fog_evidence/observation_descriptors.npz")
+    parser.add_argument("--dense-cache", default="logs/focusgui_evidence/observation_descriptors.npz")
     parser.add_argument("--out-dir", default=None)
     parser.add_argument("--test-ratio", type=float, default=0.20)
     parser.add_argument("--dev-ratio", type=float, default=0.10)
@@ -1110,7 +1110,7 @@ def main() -> None:
 
     backend = build_backend(args)
     query_index = GROUP_NAMES.index("model_query_hidden")
-    adapter = DeterministicFOGAdapter(
+    adapter = DeterministicFocusGUIAdapter(
         [group.shape[1] for group in train_groups],
         args.token_dim,
         args.z_dim,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Shared data and projection utilities for the final FOG pipeline."""
+"""Shared data and projection utilities for the final FocusGUI pipeline."""
 
 from __future__ import annotations
 

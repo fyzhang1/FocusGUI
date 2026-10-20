@@ -1,16 +1,18 @@
 #!/usr/bin/env python
-"""Extract label-free screen, audio, video, and state descriptors for FOG."""
+"""Extract label-free screen, audio, video, and state descriptors for FocusGUI."""
 
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import cv2
 import librosa
 import numpy as np
 
-from scripts.fog_common import REPO_ROOT, load_docs
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.focusgui_common import REPO_ROOT, load_docs
 
 
 def resolve_media(path: str) -> Path:
@@ -125,7 +127,7 @@ def observation_features(doc: dict) -> np.ndarray:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--out", default="logs/fog_evidence/observation_descriptors.npz"
+        "--out", default="logs/focusgui_evidence/observation_descriptors.npz"
     )
     args = parser.parse_args()
 

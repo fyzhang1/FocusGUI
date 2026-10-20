@@ -1,127 +1,118 @@
-# FOG: Focused Omni-modal GUI Agents
+<div align="center">
 
-FOG is a lightweight decoder-conditioning method for sequential omni-modal
-GUI grounding. It learns which evidence channels should influence the next
-action while preserving the pretrained model's original autoregressive
-decoder and LM head.
+# FocusGUI
+### Focused Omni-Modal GUI Agents
 
-At each interaction step, FOG:
+**Fuyao Zhang · Wenwen He · Jiaming Zhang · Yurong Hao · Xuan Wang**<br>
+**Guowei Guan · Che Wang · Longtao Huang · Wei Yang Bryan Lim**
 
-1. extracts complementary evidence from the frozen omni-modal backbone and
-   label-free screen, audio, video, text/history, and state descriptors;
-2. computes step-adaptive channel priorities from the current full-modal
-   query;
-3. compresses the selected evidence into action-sufficient latent tokens;
-4. injects a zero-initialized residual at the action-generation boundary; and
-5. generates the structured action through the frozen decoder and original
-   LM head.
+Nanyang Technological University · Alibaba Group
 
-Only the evidence projectors, prioritization network, compression module, and
-latent-token projection are trained. The backbone, Transformer decoder, and
-LM head remain frozen.
+[![arXiv](https://img.shields.io/badge/arXiv-2610.26203-597b9c?style=flat-square)](https://arxiv.org/abs/2610.26203)
+[![Paper PDF](https://img.shields.io/badge/Paper-PDF-738fa8?style=flat-square)](https://arxiv.org/pdf/2610.26203)
+[![Project](https://img.shields.io/badge/Project-Page-8ca3b7?style=flat-square)](https://fyzhang1.github.io/FocusGUI/)
 
-## Release Scope
+**Step-adaptive evidence selection. Compact focus. Original decoder.**
 
-This compact release supports the four backbones used in our experiments:
+[Overview](#overview) · [Quick Start](#quick-start) · [Backbones](#other-backbones) · [Code Map](#code-map) · [Citation](#citation)
 
-- Qwen2.5-Omni-7B
-- MiniCPM-o-4.5
-- VITA-1.5
-- Baichuan-Omni-1.5
+</div>
 
-The repository contains FOG training, frozen-evidence extraction, OmniGUI
-evaluation utilities, component ablations, and analysis code. It intentionally
-does **not** contain:
+## Overview
 
-- OmniGUI annotations or media;
-- model weights or hidden-state caches;
-- checkpoints, predictions, or experiment logs;
-- screenshot-only GUI grounding baseline implementations.
+FocusGUI is a lightweight adapter for omni-modal GUI agents. It organizes
+the evidence available at each interaction step and conditions the next
+action without replacing the pretrained decoder or its language-model head.
 
-See [DATA.md](DATA.md) for the separate data setup.
+<p align="center">
+  <img src="assets/focusgui_overview.png" alt="FocusGUI architecture: channel prioritization, compact focus, and residual alignment with a frozen decoder" width="100%">
+</p>
 
-## Repository Layout
+*Method overview from Figure 2 of [Focused Omni-Modal GUI Agents](https://arxiv.org/abs/2610.26203).*
 
-```text
-scripts/
-  fog_common.py                         shared split/projection utilities
-  prepare_omnigui_chunks.py             episode-preserving data preparation
-  extract_observation_descriptors.py    label-free modality descriptors
-  extract_qwen_ares_evidence.py         Qwen channel evidence extraction
-  extract_*_hidden_states.py             other-backbone hidden extraction
-  train_ares_lm_adapter_qwen.py          Qwen FOG training and generation
-  train_ares_lm_adapter_multibackbone.py portable three-backbone runner
-  run_qwen_ares_fusion_ablation.sh       fusion/component controls
-  analyze_fog_trajectory_depth.py        trajectory-depth analysis
-  plot_ares_channel_prioritization.py    channel-priority analysis
-lmms_eval/
-  models/                                four supported backbone wrappers
-  tasks/agentcpm_gui/                    OmniGUI task and evaluator
-reports/                                 curated paper tables and figures
-```
+| Stage | Role |
+|---|---|
+| Channel decomposition | Expose complementary evidence from the current observation. |
+| Step-adaptive prioritization | Weight channels against the current full-modal decision reference. |
+| Compact focus | Project the weighted evidence into a low-dimensional latent. |
+| Residual alignment | Add a zero-initialized residual at the action-generation boundary. |
 
-Some implementation filenames retain the historical internal prefix `ares_`
-for checkpoint and command compatibility. They implement the final FOG method
-described above; no legacy EIB/EAF classification head is included.
+Only the adapter is trained. The backbone, Transformer decoder, and original
+LM head stay frozen, and actions are generated autoregressively as structured
+JSON. Training uses action annotations rather than modality-relevance labels.
 
-## Installation
+## Quick Start
+
+### 1. Install
 
 ```bash
-conda create -n fog python=3.10 -y
-conda activate fog
-pip install -e ./lmms_eval
-pip install librosa qwen-omni-utils
+git clone https://github.com/fyzhang1/FocusGUI.git
+cd FocusGUI
+conda create -n focusgui python=3.10 -y
+conda activate focusgui
+pip install -e ".[qwen]"
 ```
 
-Install each backbone's official runtime dependencies before using its local
-wrapper. VITA may additionally require its source tree through
-`VITA_CODE_PATH`; Baichuan installations that need a compatibility package can
-set `BAICHUAN_COMPAT_PATH`. The supported environment variables are listed in
-[.env.example](.env.example).
+Use a CUDA-enabled PyTorch build matching your system. Other backbones may
+require separate environments and their upstream runtime dependencies.
+Configuration variables are listed in [.env.example](.env.example); export
+them in your shell when overriding model locations.
 
-## Data Preparation
+### 2. Prepare the data
 
-After downloading OmniGUI into `data/` as described in [DATA.md](DATA.md), run:
+Follow [DATA.md](DATA.md) to download OmniGUI separately, then run:
 
 ```bash
 python scripts/prepare_omnigui_chunks.py
 ```
 
-The deterministic paper split is created later by episode, with seed
-`20260626`, using 70%/10%/20% train/dev/test proportions. Episodes never cross
-splits, and test labels are used only for final evaluation.
+The training scripts split by episode using seed `20260626`, with
+70%/10%/20% train/dev/test proportions. Validation selects the checkpoint;
+held-out test observations are used for final action generation.
 
-## Qwen Workflow
+### 3. Extract frozen Qwen evidence
 
-Extract frozen, label-free Qwen evidence in two shards:
+The following commands can run in separate terminals on two GPUs:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python scripts/extract_qwen_ares_evidence.py \
+CUDA_VISIBLE_DEVICES=0 python scripts/extract_qwen_focusgui_evidence.py \
   --shard-index 0 --num-shards 2 \
-  --out logs/fog_evidence/qwen_shard0.npz
+  --out logs/focusgui_evidence/qwen_shard0.npz
 
-CUDA_VISIBLE_DEVICES=1 python scripts/extract_qwen_ares_evidence.py \
+CUDA_VISIBLE_DEVICES=1 python scripts/extract_qwen_focusgui_evidence.py \
   --shard-index 1 --num-shards 2 \
-  --out logs/fog_evidence/qwen_shard1.npz
+  --out logs/focusgui_evidence/qwen_shard1.npz
 ```
 
-Train the formal deterministic FOG adapter and generate held-out actions:
+### 4. Train and evaluate
 
 ```bash
 torchrun --standalone --nproc_per_node=2 \
-  scripts/train_ares_lm_adapter_qwen.py \
+  scripts/train_focusgui_lm_adapter_qwen.py \
   --semantic-evidence-cache \
-    logs/fog_evidence/qwen_shard0.npz,logs/fog_evidence/qwen_shard1.npz \
+    logs/focusgui_evidence/qwen_shard0.npz,logs/focusgui_evidence/qwen_shard1.npz \
   --fusion-mode dynamic \
   --no-vib --beta-kl 0 --lambda-weight 0 \
   --generation-split test \
-  --out-dir logs/fog_qwen
+  --out-dir logs/focusgui_qwen
 ```
 
-This command trains only FOG and then performs fresh autoregressive generation
-through Qwen's frozen decoder and original LM head.
+This trains the deterministic adapter and generates held-out actions with
+Qwen's original decoder and LM head. For one GPU, use
+`CUDA_VISIBLE_DEVICES=0 python scripts/train_focusgui_lm_adapter_qwen.py`
+with the same arguments in place of `torchrun`.
+
+Checkpoints and prediction records are written to `logs/focusgui_qwen/`.
+Use `--help` for evaluation-only execution and the available controls.
 
 ## Other Backbones
+
+| Backbone | Local weights environment variable | Adapter launcher |
+|---|---|---|
+| Qwen2.5-Omni-7B | `QWEN2_5_OMNI_PRETRAINED` | `train_focusgui_lm_adapter_qwen.py` |
+| MiniCPM-o-4.5 | `MINICPM_O_PRETRAINED` | `train_focusgui_lm_adapter_minicpm.sh` |
+| VITA-1.5 | `VITA_PRETRAINED` | `train_focusgui_lm_adapter_vita.sh` |
+| Baichuan-Omni-1.5 | `BAICHUAN_OMNI_PRETRAINED` | `train_focusgui_lm_adapter_baichuan.sh` |
 
 First extract the shared label-free observation descriptors:
 
@@ -129,41 +120,67 @@ First extract the shared label-free observation descriptors:
 python scripts/extract_observation_descriptors.py
 ```
 
-Then extract the selected backbone's frozen hidden evidence and launch FOG:
+Then extract the selected backbone's frozen hidden evidence and launch FocusGUI:
 
 ```bash
 python scripts/extract_minicpm_hidden_states.py
-bash scripts/train_ares_lm_adapter_minicpm.sh
+bash scripts/train_focusgui_lm_adapter_minicpm.sh
 
 python scripts/extract_vita_hidden_states.py
-bash scripts/train_ares_lm_adapter_vita.sh
+bash scripts/train_focusgui_lm_adapter_vita.sh
 
 python scripts/extract_baichuan_hidden_states.py
-bash scripts/train_ares_lm_adapter_baichuan.sh
+bash scripts/train_focusgui_lm_adapter_baichuan.sh
 ```
 
-The three stages can also be run sequentially with:
+After all three hidden caches are available, run their adapter training and
+evaluation sequentially with:
 
 ```bash
-bash scripts/run_corrected_ares_other_models_sequential.sh
+bash scripts/run_focusgui_other_models.sh
 ```
 
-All generated artifacts are written under `logs/` and excluded from Git.
+Launchers use the active Python environment; set `PYTHON` to another
+interpreter if needed. VITA requires its source tree through `VITA_CODE_PATH`.
+Use `BAICHUAN_COMPAT_PATH` when your Baichuan installation requires an
+additional compatibility package.
 
-## Analyses
+## Code Map
 
-The release includes scripts for:
+| Entry point | Purpose |
+|---|---|
+| [`focusgui_common.py`](scripts/focusgui_common.py) | Episode splits and projection utilities |
+| [`extract_qwen_focusgui_evidence.py`](scripts/extract_qwen_focusgui_evidence.py) | Native Qwen modality evidence |
+| [`extract_observation_descriptors.py`](scripts/extract_observation_descriptors.py) | Label-free observation descriptors |
+| [`train_focusgui_lm_adapter_qwen.py`](scripts/train_focusgui_lm_adapter_qwen.py) | Qwen adapter training and generation |
+| [`train_focusgui_lm_adapter_multibackbone.py`](scripts/train_focusgui_lm_adapter_multibackbone.py) | MiniCPM, VITA, and Baichuan adapters |
+| [`run_qwen_focusgui_fusion_ablation.sh`](scripts/run_qwen_focusgui_fusion_ablation.sh) | Fusion controls under a shared protocol |
+| [`analyze_focusgui_trajectory_depth.py`](scripts/analyze_focusgui_trajectory_depth.py) | Performance across interaction depth |
+| [`plot_focusgui_channel_prioritization.py`](scripts/plot_focusgui_channel_prioritization.py) | Channel-priority statistics |
+| [`lmms_eval/`](lmms_eval/) | Required model wrappers, prompts, and evaluation infrastructure |
 
-- dynamic channel-priority statistics across task categories and phases;
-- trajectory-depth performance analysis with episode-clustered bootstrap CIs;
-- sequential leave-one-modality-out sensitivity;
-- observation redundancy statistics;
-- controlled Qwen fusion ablations.
+The repository publishes maintained code and the paper overview figure.
+Datasets, media, model weights, checkpoints, prediction logs, hidden caches,
+and third-party grounding baseline implementations are not bundled.
 
-Curated, non-log paper artifacts are retained under `reports/`.
+## Citation
+
+```bibtex
+@article{zhang2026focusgui,
+  title   = {Focused Omni-Modal GUI Agents},
+  author  = {Fuyao Zhang and Wenwen He and Jiaming Zhang and Yurong Hao and
+             Xuan Wang and Guowei Guan and Che Wang and Longtao Huang and
+             Wei Yang Bryan Lim},
+  journal = {arXiv preprint arXiv:2610.26203},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2610.26203},
+  url     = {https://arxiv.org/abs/2610.26203}
+}
+```
 
 ## Acknowledgment
 
-FOG is evaluated on [OmniGUI](https://github.com/omni-gui/OmniGUI) and uses a
-compact subset of its evaluation framework. Please follow the upstream
-dataset, model, and evaluator licenses and cite OmniGUI when using this code.
+FocusGUI builds on OmniGUI and the [LMMS-Eval](https://github.com/EvolvingLMMs-Lab/lmms-eval)
+evaluation infrastructure, alongside the four backbone projects. Their
+names and attribution are retained in the corresponding model and evaluator
+code. Please follow upstream data and model licenses and cite the relevant work.
