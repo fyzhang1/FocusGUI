@@ -13,9 +13,17 @@ Nanyang Technological University · Alibaba Group
 
 **Step-adaptive evidence selection. Compact focus. Original decoder.**
 
-[Overview](#overview) · [Quick Start](#quick-start) · [Backbones](#other-backbones) · [Code Map](#code-map) · [Citation](#citation)
+[Demo](#demo) · [Overview](#overview) · [Quick Start](#quick-start) · [Backbones](#other-backbones) · [Code Map](#code-map) · [Citation](#citation)
 
 </div>
+
+## Demo
+
+[![FocusGUI parallel-phone demo](assets/focusgui_demo_poster.jpg)](https://fyzhang1.github.io/#publications)
+
+[Watch on the homepage](https://fyzhang1.github.io/#publications) · [Download MP4](assets/focusgui_demo.mp4)
+
+A 36-second illustrative demo of five parallel multimodal GUI workflows, with video, audio, typing, scrolling, and result verification. The interfaces and action sequences are simulated; this is not a recording of model inference. Stock media and sound credits are listed in [Demo media credits](assets/DEMO_MEDIA_CREDITS.md).
 
 ## Overview
 
